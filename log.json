@@ -1,0 +1,1 @@
+[{"opcode": "LOAD_CONST", "const": 191, "adress": 10}, {"opcode": "LOAD_CONST", "const": 5, "adress": 5}, {"opcode": "WRITE_MEM", "read_adress": 5, "write_adress": 0}]

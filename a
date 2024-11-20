@@ -1,0 +1,41 @@
+[33mcommit dc0732efda415c57a1b40edfe772edba4c1b4dd6[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: Mmm-max <em.solopov@gmail.com>
+Date:   Thu Nov 21 00:26:14 2024 +0300
+
+    add some trash
+
+[33mcommit c4d2781beed11cfeb05d3b0c56b954ac204c7e56[m
+Author: Mmm-max <em.solopov@gmail.com>
+Date:   Wed Nov 20 21:37:36 2024 +0300
+
+    fix reading of binary file
+
+[33mcommit eb067b870612adaed1a67e45fb865b49ae61697d[m
+Author: Mmm-max <em.solopov@gmail.com>
+Date:   Wed Nov 20 20:37:35 2024 +0300
+
+    update test file
+
+[33mcommit b3ee6b85bc8c0b7c2be1acef8e70266b2eb25830[m
+Author: Mmm-max <em.solopov@gmail.com>
+Date:   Wed Nov 20 20:36:49 2024 +0300
+
+    Update COMMANDS_SIZE values and enhance bytecode reading in assembler
+
+[33mcommit 6aa17eb6c302324830ec14e494f8bea5b31a8a6b[m
+Author: Mmm-max <em.solopov@gmail.com>
+Date:   Wed Nov 20 20:30:47 2024 +0300
+
+    complete coder
+
+[33mcommit ba7458090b32968b8802c630ff9be8a3f1e9b8a8[m
+Author: Mmm-max <em.solopov@gmail.com>
+Date:   Wed Nov 20 00:52:33 2024 +0300
+
+    first commit
+
+[33mcommit 47094c8fc804ae14036614cffaae7991f3b45c58[m
+Author: Mmm-max <78702528+Mmm-max@users.noreply.github.com>
+Date:   Tue Nov 19 17:57:55 2024 +0300
+
+    Initial commit

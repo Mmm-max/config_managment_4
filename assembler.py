@@ -2,6 +2,9 @@ import json
 import struct
 from bitarray import bitarray
 
+
+MACHINE_MEMORY_SIZE = 16
+ASSEMBLER_MEMORY_SIZE = 16
 COMANDS = {
     'LOAD_CONST': 20,
     'READ_MEM': 140,
@@ -15,8 +18,6 @@ COMMANDS_SIZE = {
     232: 6,
     219: 9
 }
-
-VM_MEMORY = 200
 class Coder:
     def __init__(self):
         self.instructions = []
@@ -82,7 +83,7 @@ class Instruction:
 class Assembler:
     def __init__(self):
         self.instructions = []
-        self
+        self.memory = [0] * ASSEMBLER_MEMORY_SIZE
     
     def read_bytecode(self, file_name):
         with open(file_name, 'rb') as f:
@@ -100,51 +101,120 @@ class Assembler:
                     case 20: # const
                         print("const")
                         data = f.read(size)
+
                         # const 8th - 33th bit, adress 34th - 51th bit
                         bit_arr.frombytes(data)
-                        # const = int(bit_arr[8:34].to01(), 2)
-                        # adress = int(bit_arr[34:52].to01(), 2)
-                        const = bit_arr[0:34 - 8].to01()
-                        adress = bit_arr[34 - 8:52 - 8].to01()
-                        print(f'bit_arr {bit_arr.to01()}')
-                        print(f'const {int(const, 2)} - {const}, adress {int(adress, 2)} - {adress}')
-                        yield (opcode, [adress])
+                        const = int(bit_arr[0:34 - 8].to01(), 2)
+                        adress = int(bit_arr[34 - 8:52 - 8].to01(), 2)
+                        # print(f'bit_arr {bit_arr.to01()}')
+                        # print(f'const {int(const, 2)} - {const}, adress {int(adress, 2)} - {adress}')
+                        yield "LOAD_CONST", const, adress
                         
                     case 140:
                         data = f.read(size)
                         # read_adress 8th - 25th bit, write_adress 26th - 43th bit
-                        bitarray.frombytes(data)
+                        bit_arr.frombytes(data)
                         read_adress = int(bit_arr[0:26 - 8].to01(), 2)
                         write_adress = int(bit_arr[26 - 8:44 - 8].to01(), 2)
-                        yield
+                        yield "READ_MEM", read_adress, write_adress
                     case 232: # write
                         data = f.read(size)
                         # read_adress 8th - 25th bit, write_adress 26th - 43th bit
-                        bitarray.frombytes(data)
+                        bit_arr.frombytes(data)
                         read_adress = int(bit_arr[0:26 - 8].to01(), 2)
                         write_adress = int(bit_arr[26 - 8:44 - 8].to01(), 2)
+                        yield "WRITE_MEM", read_adress, write_adress
                     case 219: # bin_op_and
                         data = f.read(size)
                         # b_adress 8th - 25th bit, bias 26th - 40th bit, adress_d 41th - 63th bit, adress_e 64th - 88th bit
-                        bitarray.frombytes(data)
+                        bit_arr.frombytes(data)
                         b_adress = int(bit_arr[0:26 - 8].to01(), 2)
                         bias = int(bit_arr[26 - 8:31 - 8].to01(), 2)
                         adress_d = int(bit_arr[31 - 8:49 - 8].to01(), 2)
                         adress_e = int(bit_arr[49 - 8:67 - 8].to01(), 2)
+                        yield "BIN_OP_AND", b_adress, bias, adress_d, adress_e
                     case _:
                         raise ValueError(f'Unknown command {opcode}')
+                    
+    def set_value(self, value, adress):
+        if len(self.memory) <= adress:
+            raise ValueError(f'Adress {adress} out of memory')
+        self.memory[adress] = value
+        return 0
     
-    # def const()
+    def get_value(self, adress):
+        if len(self.memory) <= adress:
+            raise ValueError(f'Adress {adress} out of memory')
+        return self.memory[adress]
+    
+    
 
 class VirtualMachine:
     def __init__(self):
-        self.memory = [0] * VM_MEMORY
-        assembler = Assembler()
-
+        self.memory = [0] * MACHINE_MEMORY_SIZE
+        self.assembler = Assembler()
+        self.logger = Logger_json()
+        
+    def run(self, file_name):
+        for opcode, *operands in self.assembler.read_bytecode(file_name):
+            match opcode:
+                case 'LOAD_CONST':
+                    const, adress = operands
+                    try:
+                        self.assembler.set_value(const, adress)
+                    except IndexError:
+                        self.logger.logging({'opcode': opcode, 'const': const, 'adress': adress, 'error': 'Adress out of VM memory'})
+                        self.logger.write('log.json')
+                        raise ValueError(f'Adress {adress} out of VM memory')
+                    self.logger.logging({'opcode': opcode, 'const': const, 'adress': adress})
+                case 'READ_MEM':
+                    read_adress, write_adress = operands
+                    if len(self.memory) <= read_adress:
+                        self.logger.logging({'opcode': opcode, 'read_adress': read_adress, 'write_adress': write_adress, 'error': 'Adress out of VM memory'})
+                        self.logger.write('log.json')
+                        raise ValueError(f'Adress {read_adress} out of VM memory')
+                    self.assembler.set_value(self.memory[read_adress])
+                    self.logger.logging({'opcode': opcode, 'read_adress': read_adress, 'write_adress': write_adress})
+                case 'WRITE_MEM':
+                    read_adress, write_adress = operands
+                    if len(self.memory) <= write_adress:
+                        raise ValueError(f'Adress {write_adress} out of VM memory')
+                    self.memory[write_adress] = self.assembler.get_value(read_adress)
+                    self.logger.logging({'opcode': opcode, 'read_adress': read_adress, 'write_adress': write_adress})
+                case 'BIN_OP_AND':
+                    b_adress, bias, adress_d, adress_e = operands
+                    if len(self.memory) <= b_adress or len(self.memory) <= adress_e or len(self.memory) <= adress_d:
+                        self.logger.logging({'opcode': opcode, 'b_adress': b_adress, 'bias': bias, 'adress_d': adress_d, 'adress_e': adress_e, 'error': 'Adress out of VM memory'})
+                        self.logger.write('log.json')
+                        raise ValueError(f'Adress {b_adress} or {adress_e} or {adress_d} out of VM memory')
+                    self.memory[adress_d] = self.memory[b_adress] & self.memory[adress_e] + bias
+                    self.logger.logging({'opcode': opcode, 'b_adress': b_adress, 'bias': bias, 'adress_d': adress_d, 'adress_e': adress_e})
+                case _:
+                    self.logger.logging({'opcode': opcode, 'operands': operands})
+                    self.logger.write('log.json')
+                    raise ValueError(f'Unknown command {opcode}')
+        
+        print(self.memory)
+        self.logger.write('log.json')
+                
+class Logger_json:
+    def __init__(self):
+        self.log = []
+    
+    def logging(self, message):
+        self.log.append(message)
+    
+    def write(self, file_name):
+        with open(file_name, 'w') as f:
+            json.dump(self.log, f)
+    
+    def read(self, file_name):
+        with open(file_name, 'r') as f:
+            self.log = json.load(f)
+    
 def main():
     coder = Coder()
     coder.read('input.txt')
-    coder.write('output.bin')
-    
-    assembler = Assembler()
-    assembler.read_bytecode('output.bin')
+    coder.write('output.txt')
+    vm = VirtualMachine()
+    vm.run('output.txt')
