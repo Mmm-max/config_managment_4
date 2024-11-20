@@ -10,10 +10,10 @@ COMANDS = {
 }
 
 COMMANDS_SIZE = {
-    20: 7,
-    140: 6,
-    232: 6,
-    83: 9
+    20: 6,
+    140: 5,
+    232: 5,
+    83: 8
 }
 
 class Coder:
@@ -78,7 +78,14 @@ class Assembler:
     def read_bytecode(self, file_name):
         with open(file_name, 'rb') as f:
             while True:
-                byte = f.read(1)
-                if not byte:
+                opcode = f.read(1)
+                if not opcode:
                     break
-                self.instructions.append(byte)
+                opcode = int.from_bytes(opcode, byteorder='big')
+                if opcode not in COMANDS.values():
+                    raise ValueError(f'Unknown command {opcode}')
+                match opcode:
+                    case 20: # const
+                        size = COMMANDS_SIZE[opcode]
+                        data = f.read(size)
+                        const, adress = struct.unpack('>ii', data)
