@@ -16,6 +16,7 @@ COMMANDS_SIZE = {
     219: 9
 }
 
+VM_MEMORY = 200
 class Coder:
     def __init__(self):
         self.instructions = []
@@ -81,6 +82,7 @@ class Instruction:
 class Assembler:
     def __init__(self):
         self.instructions = []
+        self
     
     def read_bytecode(self, file_name):
         with open(file_name, 'rb') as f:
@@ -106,12 +108,15 @@ class Assembler:
                         adress = bit_arr[34 - 8:52 - 8].to01()
                         print(f'bit_arr {bit_arr.to01()}')
                         print(f'const {int(const, 2)} - {const}, adress {int(adress, 2)} - {adress}')
+                        yield (opcode, [adress])
+                        
                     case 140:
                         data = f.read(size)
                         # read_adress 8th - 25th bit, write_adress 26th - 43th bit
                         bitarray.frombytes(data)
                         read_adress = int(bit_arr[0:26 - 8].to01(), 2)
                         write_adress = int(bit_arr[26 - 8:44 - 8].to01(), 2)
+                        yield
                     case 232: # write
                         data = f.read(size)
                         # read_adress 8th - 25th bit, write_adress 26th - 43th bit
@@ -128,8 +133,13 @@ class Assembler:
                         adress_e = int(bit_arr[49 - 8:67 - 8].to01(), 2)
                     case _:
                         raise ValueError(f'Unknown command {opcode}')
+    
+    # def const()
 
-
+class VirtualMachine:
+    def __init__(self):
+        self.memory = [0] * VM_MEMORY
+        assembler = Assembler()
 
 def main():
     coder = Coder()
