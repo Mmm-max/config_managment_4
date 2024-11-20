@@ -2,6 +2,9 @@ import json
 import struct
 from bitarray import bitarray
 
+
+MACHINE_MEMORY_SIZE = 256
+ASSEMBLER_MEMORY_SIZE = 256
 COMANDS = {
     'LOAD_CONST': 20,
     'READ_MEM': 140,
@@ -81,6 +84,7 @@ class Instruction:
 class Assembler:
     def __init__(self):
         self.instructions = []
+        self.memory = [0] * ASSEMBLER_MEMORY_SIZE
     
     def read_bytecode(self, file_name):
         with open(file_name, 'rb') as f:
@@ -106,6 +110,7 @@ class Assembler:
                         adress = bit_arr[34 - 8:52 - 8].to01()
                         print(f'bit_arr {bit_arr.to01()}')
                         print(f'const {int(const, 2)} - {const}, adress {int(adress, 2)} - {adress}')
+                        yield 'LOAD_CONST', int(const, 2), int(adress, 2)
                     case 140:
                         data = f.read(size)
                         # read_adress 8th - 25th bit, write_adress 26th - 43th bit
@@ -128,9 +133,42 @@ class Assembler:
                         adress_e = int(bit_arr[49 - 8:67 - 8].to01(), 2)
                     case _:
                         raise ValueError(f'Unknown command {opcode}')
+                    
+    def set_value(self, value, adress):
+        if len(self.memory) <= adress:
+            raise ValueError(f'Adress {adress} out of memory')
+        self.memory[adress] = value
+        return 0
+    
+    def get_value(self, adress):
+        if len(self.memory) <= adress:
+            raise ValueError(f'Adress {adress} out of memory')
+        return self.memory[adress]
 
 
 
+class VirtualMachine:
+    def __init__(self):
+        self.memory = [0] * MACHINE_MEMORY_SIZE
+        self.assembler = Assembler()
+        
+    def run(self, file_name):
+        for opcode, *operands in self.assembler.read_bytecode(file_name):
+            match opcode:
+                case 'LOAD_CONST':
+                    const, adress = operands
+                    self.memory[adress] = const
+                case 'READ_MEM':
+                    read_adress, write_adress = operands
+                    self.assembler.set_value(self.memory[read_adress])
+                case 'WRITE_MEM':
+                    read_adress, write_adress = operands
+                    self.memory[write_adress] = self.assembler.get_value(read_adress)
+                case 'BIN_OP_AND':
+                    b_adress, bias, adress_d, adress_e = operands
+                    self.memory[adress_d] = self.memory[b_adress] & self.memory[adress_e] + bias
+                case _:
+                    raise ValueError(f'Unknown command {opcode}')
 def main():
     coder = Coder()
     coder.read('input.txt')
