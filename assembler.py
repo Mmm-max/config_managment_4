@@ -82,3 +82,4 @@ class Assembler:
                 if not byte:
                     break
                 self.instructions.append(byte)
+                
