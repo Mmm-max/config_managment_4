@@ -1,6 +1,7 @@
 import json
 import struct
 from bitarray import bitarray
+import argparse
 
 
 MACHINE_MEMORY_SIZE = 16
@@ -18,6 +19,15 @@ COMMANDS_SIZE = {
     232: 6,
     219: 9
 }
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Assembler for VM')
+    parser.add_argument('--input', type=str, default="input/input.txt", help='Input file with commands')
+    parser.add_argument('--output', type=str, default="output.bin", help='Output file with bytecode')
+    parser.add_argument('--log', type=str, default="log.json", help='Log file')
+    return parser.parse_args()
+
+
 class Coder:
     def __init__(self):
         self.instructions = []
@@ -26,7 +36,7 @@ class Coder:
         with open(file_name, 'r') as f:
             for line in f.readlines():
                 opcode, *operands = line.strip().split(', ')
-                print(f'first operands: {operands}')
+                # print(f'first operands: {operands}')
                 self.instructions.append(Instruction(opcode, operands))
     
     def write(self, file_name):
@@ -43,8 +53,8 @@ class Instruction:
         return f'{self.opcode} {", ".join(self.operands)}'
     
     def encode(self):
-        print("endcode")
-        print(f'operands {self.operands}')
+        # print("endcode")
+        # print(f'operands {self.operands}')
         bit_arr = bitarray(endian='big')
         if self.opcode not in COMANDS:
             raise ValueError(f'Unknown command {self.opcode}')
@@ -52,12 +62,12 @@ class Instruction:
         size = COMMANDS_SIZE[self.opcode] * 8
         if self.opcode == 20:    # const
             const, adress = self.operands
-            print(f'const {const}, adress {adress}')
-            print(f'const {const} ({bin(const)}), adress {adress} ({bin(adress)})')
-            print(f'shift opcode: {size - 7}, shift const: {size - 26}, shift adress: {size - 18}')
+            # print(f'const {const}, adress {adress}')
+            # print(f'const {const} ({bin(const)}), adress {adress} ({bin(adress)})')
+            # print(f'shift opcode: {size - 7}, shift const: {size - 26}, shift adress: {size - 18}')
             packed_data = (self.opcode << (size - 8)) | (const << (size - 34)) | (adress << (size - 52))
-            for i in packed_data.to_bytes(7, byteorder='big'):
-                print(f'i: {i} - {i:08b}')
+            # for i in packed_data.to_bytes(7, byteorder='big'):
+            #     print(f'i: {i} - {i:08b}')
             bit_arr.frombytes(packed_data.to_bytes(7, byteorder='big'))
         elif self.opcode == 140:   # read
             read_adress, write_adress = self.operands
@@ -74,9 +84,9 @@ class Instruction:
         
         
         
-        print(' '.join(f'{byte:02x}' for byte in bit_arr.tobytes()))
-        print(1)
-        print(bit_arr.to01())
+        # print(' '.join(f'{byte:02x}' for byte in bit_arr.tobytes()))
+        # print(1)
+        # print(bit_arr.to01())
         return bit_arr
     
 
@@ -99,7 +109,6 @@ class Assembler:
                 size = (COMMANDS_SIZE[opcode] - 1) # opcode already read
                 match opcode:
                     case 20: # const
-                        print("const")
                         data = f.read(size)
 
                         # const 8th - 33th bit, adress 34th - 51th bit
@@ -153,13 +162,14 @@ class Assembler:
     
 
 class VirtualMachine:
-    def __init__(self):
+    def __init__(self, logfile):
         self.memory = [0] * MACHINE_MEMORY_SIZE
         self.assembler = Assembler()
-        self.logger = Logger_json()
-        
+        self.logger = Logger_json(logfile)
+    
+    def __len_memory(self):
+        return len(self.memory)
     def run(self, file_name):
-        print("hahahahahaahahahhaa")
         for opcode, *operands in self.assembler.read_bytecode(file_name):
             match opcode:
                 case 'LOAD_CONST':
@@ -168,14 +178,14 @@ class VirtualMachine:
                         self.assembler.set_value(const, adress)
                     except IndexError:
                         self.logger.logging({'opcode': opcode, 'const': const, 'adress': adress, 'error': 'Adress out of VM memory'})
-                        self.logger.write('log.json')
+                        self.logger.write()
                         raise ValueError(f'Adress {adress} out of VM memory')
                     self.logger.logging({'opcode': opcode, 'const': const, 'adress': adress})
                 case 'READ_MEM':
                     read_adress, write_adress = operands
                     if len(self.memory) <= read_adress:
                         self.logger.logging({'opcode': opcode, 'read_adress': read_adress, 'write_adress': write_adress, 'error': 'Adress out of VM memory'})
-                        self.logger.write('log.json')
+                        self.logger.write()
                         raise ValueError(f'Adress {read_adress} out of VM memory')
                     self.assembler.set_value(self.memory[read_adress])
                     self.logger.logging({'opcode': opcode, 'read_adress': read_adress, 'write_adress': write_adress})
@@ -189,19 +199,26 @@ class VirtualMachine:
                     b_adress, bias, adress_d, adress_e = operands
                     if len(self.memory) <= b_adress or len(self.memory) <= adress_e or len(self.memory) <= adress_d:
                         self.logger.logging({'opcode': opcode, 'b_adress': b_adress, 'bias': bias, 'adress_d': adress_d, 'adress_e': adress_e, 'error': 'Adress out of VM memory'})
-                        self.logger.write('log.json')
+                        self.logger.write()
                         raise ValueError(f'Adress {b_adress} or {adress_e} or {adress_d} out of VM memory')
-                    for i in range(bias):
-                        self.memory[adress_d + i] = self.assembler.add_bin(self.memory[b_adress + i], self.memory[adress_e + i])
+                    self.bin_op_and(b_adress, bias, adress_d, adress_e)
                     self.logger.logging({'opcode': opcode, 'b_adress': b_adress, 'bias': bias, 'adress_d': adress_d, 'adress_e': adress_e})
                 case _:
                     self.logger.logging({'opcode': opcode, 'operands': operands})
-                    self.logger.write('log.json')
+                    self.logger.write()
                     raise ValueError(f'Unknown command {opcode}')
         
-        print(self.memory)
-        self.logger.write('log.json')
-        
+        print("vm memory: ", self.memory)
+        print("assembler memory: ", self.assembler.memory)
+        self.logger.write()
+
+    def bin_op_and(self, b_adress: int, bias: int, adress_d: int, adress_e: int):
+        if self.__len_memory() <= b_adress + bias or self.__len_memory() <= adress_e + bias or self.__len_memory() <= adress_d + bias:
+            raise ValueError(f'Adress {b_adress} or {adress_e} or {adress_d} out of VM memory')
+        for i in range(bias):
+            # print(f'adress_d + i: {adress_d + i}, adress_e + i: {adress_e + i}')
+            self.memory[adress_d + i] = self.assembler.add_bin(self.memory[b_adress + i], self.memory[adress_e + i])
+
     def set_memory(self, memory):
         self.memory = memory
     
@@ -215,23 +232,39 @@ class VirtualMachine:
         self.assembler.memory = memory
                 
 class Logger_json:
-    def __init__(self):
+    def __init__(self, file_name):
         self.log = []
+        self.file_name = file_name
     
     def logging(self, message):
         self.log.append(message)
     
-    def write(self, file_name):
-        with open(file_name, 'w') as f:
+    def write(self):
+        with open(self.file_name, 'w') as f:
             json.dump(self.log, f)
     
-    def read(self, file_name):
-        with open(file_name, 'r') as f:
+    def read(self):
+        with open(self.file_name, 'r') as f:
             self.log = json.load(f)
     
+    def print_log(self):
+        self.read()
+        print("log")
+        for log in self.log:
+            print(log)
+    
 def main():
+    args = parse_arguments()
     coder = Coder()
-    coder.read('input.txt')
-    coder.write('output.txt')
-    vm = VirtualMachine()
-    vm.run('output.txt')
+    # input.txt
+    coder.read(args.input)
+    # output.txt
+    coder.write(args.output)
+    # log.json
+    vm = VirtualMachine(args.log)
+    # output.txt
+    vm.run(args.output)
+    vm.logger.print_log()
+
+if __name__ == '__main__':
+    main()
