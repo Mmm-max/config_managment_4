@@ -136,7 +136,7 @@ class Assembler:
                     case _:
                         raise ValueError(f'Unknown command {opcode}')
                     
-    def set_value(self, value, adress):
+    def set_value(self, value: int, adress: int) -> int:
         if len(self.memory) <= adress:
             raise ValueError(f'Adress {adress} out of memory')
         self.memory[adress] = value
@@ -147,6 +147,9 @@ class Assembler:
             raise ValueError(f'Adress {adress} out of memory')
         return self.memory[adress]
     
+    def add_bin(self, a, b):
+        return a & b
+    
     
 
 class VirtualMachine:
@@ -156,6 +159,7 @@ class VirtualMachine:
         self.logger = Logger_json()
         
     def run(self, file_name):
+        print("hahahahahaahahahhaa")
         for opcode, *operands in self.assembler.read_bytecode(file_name):
             match opcode:
                 case 'LOAD_CONST':
@@ -187,7 +191,8 @@ class VirtualMachine:
                         self.logger.logging({'opcode': opcode, 'b_adress': b_adress, 'bias': bias, 'adress_d': adress_d, 'adress_e': adress_e, 'error': 'Adress out of VM memory'})
                         self.logger.write('log.json')
                         raise ValueError(f'Adress {b_adress} or {adress_e} or {adress_d} out of VM memory')
-                    self.memory[adress_d] = self.memory[b_adress] & self.memory[adress_e] + bias
+                    for i in range(bias):
+                        self.memory[adress_d + i] = self.assembler.add_bin(self.memory[b_adress + i], self.memory[adress_e + i])
                     self.logger.logging({'opcode': opcode, 'b_adress': b_adress, 'bias': bias, 'adress_d': adress_d, 'adress_e': adress_e})
                 case _:
                     self.logger.logging({'opcode': opcode, 'operands': operands})
@@ -196,6 +201,18 @@ class VirtualMachine:
         
         print(self.memory)
         self.logger.write('log.json')
+        
+    def set_memory(self, memory):
+        self.memory = memory
+    
+    def get_memory(self):
+        return self.memory
+    
+    def get_assember_memory(self):
+        return self.assembler.memory
+    
+    def set_assember_memory(self, memory):
+        self.assembler.memory = memory
                 
 class Logger_json:
     def __init__(self):
