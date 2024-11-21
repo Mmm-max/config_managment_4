@@ -13,5 +13,5 @@ class TestAssembler(unittest.TestCase):
         memory = [10, 10, 10, 0, 10, 5, 6, 0, 0, 0, 0, 0]
         self.vm.set_memory(memory)
         self.vm.bin_op_and(0, 3, 8, 4)
-        print(self.vm.get_memory())
-        self.assertEqual(self.vm.get_memory(), [10, 10, 10, 0, 10, 5, 6, 0, 10, 0, 2, 0])
+        # print(self.vm.get_memory())
+        self.assertEqual(self.vm.get_memory(), [10, 10, 10, 0, 10, 5, 6, 0, 10 & 10, 10 & 5, 10 & 6, 0])

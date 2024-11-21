@@ -4,8 +4,8 @@ from bitarray import bitarray
 import argparse
 
 
-MACHINE_MEMORY_SIZE = 16
-ASSEMBLER_MEMORY_SIZE = 16
+MACHINE_MEMORY_SIZE = 32
+ASSEMBLER_MEMORY_SIZE = 32
 COMANDS = {
     'LOAD_CONST': 20,
     'READ_MEM': 140,
@@ -35,6 +35,8 @@ class Coder:
     def read(self, file_name):
         with open(file_name, 'r') as f:
             for line in f.readlines():
+                if not line.strip():
+                    continue
                 opcode, *operands = line.strip().split(', ')
                 # print(f'first operands: {operands}')
                 self.instructions.append(Instruction(opcode, operands))
@@ -53,8 +55,8 @@ class Instruction:
         return f'{self.opcode} {", ".join(self.operands)}'
     
     def encode(self):
-        # print("endcode")
-        # print(f'operands {self.operands}')
+        print("endcode")
+        print(f'operands {self.operands}, opcode: {self.opcode}')
         bit_arr = bitarray(endian='big')
         if self.opcode not in COMANDS:
             raise ValueError(f'Unknown command {self.opcode}')
@@ -187,7 +189,7 @@ class VirtualMachine:
                         self.logger.logging({'opcode': opcode, 'read_adress': read_adress, 'write_adress': write_adress, 'error': 'Adress out of VM memory'})
                         self.logger.write()
                         raise ValueError(f'Adress {read_adress} out of VM memory')
-                    self.assembler.set_value(self.memory[read_adress])
+                    self.assembler.set_value(self.memory[read_adress], write_adress)
                     self.logger.logging({'opcode': opcode, 'read_adress': read_adress, 'write_adress': write_adress})
                 case 'WRITE_MEM':
                     read_adress, write_adress = operands
